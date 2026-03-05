@@ -1,0 +1,218 @@
+
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ProfitPilot Pro</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Cairo',sans-serif;background:#f4f6f9}
+.hero{background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);color:white;padding:80px 20px;text-align:center}
+.hero h1{font-size:42px;margin-bottom:15px}
+.hero button{margin-top:25px;padding:14px 30px;border:none;border-radius:12px;background:gold;font-weight:bold;cursor:pointer}
+.section{padding:60px 20px;text-align:center}
+.card{background:white;padding:30px;border-radius:20px;box-shadow:0 15px 30px rgba(0,0,0,.1);margin:10px}
+.app{display:none;padding:40px 20px}
+input,select{width:100%;padding:10px;margin:8px 0;border-radius:10px;border:1px solid #ccc}
+button.primary{background:#2c5364;color:white;padding:12px;border:none;border-radius:10px;cursor:pointer}
+.result{margin-top:15px;font-weight:bold}
+.box{max-width:500px;margin:auto}
+.notice{background:#fff3cd;padding:15px;border-radius:10px;margin:10px 0}
+.history{background:white;padding:15px;border-radius:10px;margin-top:15px;text-align:right}
+</style>
+</head>
+
+<body>
+
+<div class="hero">
+<h1>ProfitPilot Pro</h1>
+<p>نظام احترافي لحساب أرباح التجارة الإلكترونية</p>
+<button onclick="openAuth()">ابدأ الآن</button>
+</div>
+
+<div class="section">
+<div class="card">
+<h2>الاشتراك</h2>
+<p>أول تجربة مجانية مرة واحدة فقط</p>
+<p><b>الاشتراك الشهري: 1500 دج</b></p>
+<p>الدفع عبر CCP</p>
+<p><b>رقم الحساب: 0044103674</b></p>
+<p>بعد الدفع تواصل مع الدعم لتفعيل الاشتراك</p>
+</div>
+</div>
+
+<div id="auth" class="app">
+<div class="box">
+<h2>تسجيل الدخول / إنشاء حساب</h2>
+<input id="email" placeholder="البريد الإلكتروني">
+<input id="pass" type="password" placeholder="كلمة السر">
+<button class="primary" onclick="signup()">إنشاء حساب</button>
+<button class="primary" onclick="login()">تسجيل الدخول</button>
+<div id="authMsg"></div>
+</div>
+</div>
+
+<div id="app" class="app">
+<div class="box">
+
+<h2>حاسبة الأرباح</h2>
+
+<select id="currency">
+<option value="DZD">دينار جزائري</option>
+<option value="USD">دولار</option>
+<option value="SAR">ريال سعودي</option>
+</select>
+
+<input type="number" id="cost" placeholder="تكلفة المنتج">
+<input type="number" id="fees" placeholder="الرسوم + الشحن">
+<input type="number" id="price" placeholder="سعر البيع">
+<input type="number" id="quantity" placeholder="عدد القطع">
+<input type="number" id="discount" placeholder="نسبة الخصم %">
+<input type="number" id="tax" placeholder="نسبة الضريبة %">
+
+<button class="primary" onclick="calculate()">احسب</button>
+
+<div class="result" id="result"></div>
+
+<div id="premiumBox" style="display:none">
+<h3>سجل العمليات (ميزة للمشتركين)</h3>
+<div id="history" class="history"></div>
+</div>
+
+<div id="upgrade" class="notice" style="display:none">
+انتهت التجربة المجانية. للاستخدام غير المحدود اشترك مقابل <b>1500 دج شهريا</b><br>
+الدفع عبر CCP: <b>0044103674</b>
+</div>
+
+</div>
+</div>
+
+<script>
+
+let currentUser=null
+
+function openAuth(){
+document.querySelector(".hero").style.display="none"
+document.getElementById("auth").style.display="block"
+}
+
+function signup(){
+let email=document.getElementById("email").value
+let pass=document.getElementById("pass").value
+
+if(!email||!pass)return
+
+let users=JSON.parse(localStorage.getItem("users")||"{}")
+
+if(users[email]){
+authMsg.innerHTML="الحساب موجود"
+return
+}
+
+users[email]={
+password:pass,
+trialUsed:false,
+premium:false,
+history:[]
+}
+
+localStorage.setItem("users",JSON.stringify(users))
+authMsg.innerHTML="تم إنشاء الحساب"
+}
+
+function login(){
+
+let email=document.getElementById("email").value
+let pass=document.getElementById("pass").value
+let users=JSON.parse(localStorage.getItem("users")||"{}")
+
+if(!users[email]||users[email].password!==pass){
+authMsg.innerHTML="بيانات غير صحيحة"
+return
+}
+
+currentUser=email
+
+document.getElementById("auth").style.display="none"
+document.getElementById("app").style.display="block"
+
+loadHistory()
+}
+
+function calculate(){
+
+let users=JSON.parse(localStorage.getItem("users"))
+let user=users[currentUser]
+
+if(user.trialUsed && !user.premium){
+document.getElementById("upgrade").style.display="block"
+return
+}
+
+let cost=parseFloat(costInput("cost"))
+let fees=parseFloat(costInput("fees"))
+let price=parseFloat(costInput("price"))
+let quantity=parseFloat(costInput("quantity"))||1
+let discount=parseFloat(costInput("discount"))
+let tax=parseFloat(costInput("tax"))
+let currency=document.getElementById("currency").value
+
+let finalPrice=price-(price*discount/100)
+let taxAmount=finalPrice*tax/100
+let totalCost=cost+fees+taxAmount
+let profitPerUnit=finalPrice-totalCost
+let totalProfit=profitPerUnit*quantity
+let margin=((profitPerUnit/finalPrice)*100).toFixed(2)
+
+let result=`
+الربح للقطعة: ${profitPerUnit.toFixed(2)} ${currency}<br>
+إجمالي الربح: ${totalProfit.toFixed(2)} ${currency}<br>
+هامش الربح: ${margin}%
+`
+
+document.getElementById("result").innerHTML=result
+
+if(!user.premium){
+user.trialUsed=true
+}
+
+if(user.premium){
+user.history.push(result)
+}
+
+localStorage.setItem("users",JSON.stringify(users))
+
+loadHistory()
+
+}
+
+function costInput(id){
+return document.getElementById(id).value||0
+}
+
+function loadHistory(){
+
+let users=JSON.parse(localStorage.getItem("users"))
+let user=users[currentUser]
+
+if(user.premium){
+
+document.getElementById("premiumBox").style.display="block"
+
+let html=""
+
+user.history.slice().reverse().forEach(h=>{
+html+="<div>"+h+"<hr></div>"
+})
+
+document.getElementById("history").innerHTML=html
+
+}
+
+}
+
+</script>
+
+</body>
+</html>
